@@ -1,0 +1,47 @@
+# Repairs drift: re-syncs PRs across every configured repo and recomputes ticket
+# status. Manual for now.
+#
+# To run nightly, uncomment the schedule below — but first give this repo a
+# token that can read PRs in the other repos (a GitHub App installation token or
+# a fine-grained PAT with pull_requests: read). GITHUB_TOKEN is scoped to this
+# repo alone and will 404 on the others.
+name: Reconcile
+
+on:
+  workflow_dispatch:
+    inputs:
+      repos:
+        description: 'Comma-separated owner/name list (blank = sync.config.json)'
+        required: false
+        default: ''
+      since-days:
+        description: 'How many days back to sweep (blank = sync.config.json)'
+        required: false
+        default: ''
+      dry-run:
+        description: 'Log intended writes without making them'
+        type: boolean
+        required: false
+        default: false
+  # schedule:
+  #   - cron: '17 3 * * *'
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Reconcile Notion against GitHub
+        uses: ubcuxhub/notion-sync-workflow@v1
+        with:
+          mode: reconcile
+          repos: ${{ inputs.repos }}
+          since-days: ${{ inputs.since-days }}
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_TICKETS_DB: ${{ vars.NOTION_TICKETS_DB }}
+          NOTION_PR_DB: ${{ vars.NOTION_PR_DB }}
+          # Cross-repo read access — not github.token, which cannot see sibling repos.
+          GITHUB_TOKEN: ${{ secrets.RECONCILE_GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry-run && '1' || '' }}

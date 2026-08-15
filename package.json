@@ -1,0 +1,32 @@
+{
+  "name": "notion-sync-workflow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Syncs GitHub pull requests into Notion, and derives ticket status from linked PRs",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "verify-schema": "tsx scripts/verify-schema.ts",
+    "sync": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "build": "ncc build src/index.ts -o dist --minify"
+  },
+  "dependencies": {
+    "@actions/core": "^3.0.1",
+    "@octokit/graphql": "^8.1.1",
+    "@octokit/rest": "^22.0.1",
+    "@tryfabric/martian": "^1.2.4",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@vercel/ncc": "^0.38.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.10"
+  }
+}

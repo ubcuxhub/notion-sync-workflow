@@ -1,0 +1,6 @@
+{
+  "repos": ["ubcuxhub/uxhub"],
+  "ticketKeyPrefix": "UX",
+  "reviewStates": true,
+  "reconcileSinceDays": 14
+}

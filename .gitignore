@@ -1,0 +1,7 @@
+node_modules/
+.env
+*.log
+.DS_Store
+
+# dist/ is intentionally NOT ignored — GitHub Actions runs the bundled
+# JavaScript directly from the repo, so it must be committed.

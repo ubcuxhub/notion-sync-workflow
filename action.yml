@@ -1,0 +1,21 @@
+name: Notion PR sync
+description: Sync GitHub pull requests into Notion and derive ticket status from linked PRs
+author: johnny-581
+
+inputs:
+  mode:
+    description: 'event (sync the PR that fired this workflow) or reconcile (sweep configured repos)'
+    required: false
+    default: event
+  repos:
+    description: 'reconcile only — comma-separated owner/name list. Defaults to sync.config.json.'
+    required: false
+    default: ''
+  since-days:
+    description: 'reconcile only — how far back to sweep. Defaults to sync.config.json.'
+    required: false
+    default: ''
+
+runs:
+  using: node20
+  main: dist/index.js

@@ -1,0 +1,36 @@
+# Copy this to .github/workflows/notion-sync.yml in each source repo.
+#
+# Nothing else is needed there: NOTION_TOKEN is an org secret and the two
+# database ids are org variables, so `secrets: inherit` covers it.
+name: Notion sync
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - edited
+      - closed
+      - ready_for_review
+      - converted_to_draft
+      - review_requested
+      - review_request_removed
+  # Drop this trigger if reviewStates is false in sync.config.json.
+  pull_request_review:
+    types: [submitted, dismissed]
+
+# Serialize per PR. cancel-in-progress must stay false: cancelling would drop
+# the newest state, which is the one worth keeping.
+concurrency:
+  group: notion-sync-${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    # This repo is public, so an outside contributor can open a PR from a fork.
+    # GitHub withholds secrets from fork PRs on `pull_request`, so the sync would
+    # fail with an empty NOTION_TOKEN. Skipping cleanly beats a red X on someone
+    # else's contribution; reconcile picks those PRs up later anyway.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    uses: ubcuxhub/notion-sync-workflow/.github/workflows/sync.yml@v1
+    secrets: inherit

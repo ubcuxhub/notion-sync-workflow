@@ -1,0 +1,33 @@
+# Reusable workflow called by each source repo. See docs/caller-workflow.yml.
+#
+# The action lives in this same repo, referenced by tag. That reference is what
+# the org-level "Accessible from repositories owned by the organization" setting
+# permits — a plain actions/checkout of this private repo from a caller would
+# need a PAT, which is exactly the extra secret this design avoids.
+name: Notion sync (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Version of notion-sync-workflow to run
+        required: false
+        type: string
+        default: v1
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Sync PR to Notion
+        uses: ubcuxhub/notion-sync-workflow@v1
+        with:
+          mode: event
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_TICKETS_DB: ${{ vars.NOTION_TICKETS_DB }}
+          NOTION_PR_DB: ${{ vars.NOTION_PR_DB }}
+          GITHUB_TOKEN: ${{ github.token }}
