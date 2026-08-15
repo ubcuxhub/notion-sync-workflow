@@ -1,7 +1,9 @@
 # Copy this to .github/workflows/notion-sync.yml in each source repo.
 #
-# Nothing else is needed there: NOTION_TOKEN is an org secret and the two
-# database ids are org variables, so `secrets: inherit` covers it.
+# That repo also needs three repository secrets — NOTION_TOKEN,
+# NOTION_TICKETS_DB, NOTION_PR_DB — because ubcuxhub is a personal account and
+# has no org secret scope. `secrets: inherit` then forwards them to the
+# reusable workflow.
 name: Notion sync
 
 on:

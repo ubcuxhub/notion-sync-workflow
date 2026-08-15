@@ -1,10 +1,14 @@
 # Repairs drift: re-syncs PRs across every configured repo and recomputes ticket
 # status. Manual for now.
 #
+# Secrets live on THIS repo (ubcuxhub is a personal account, so there is no org
+# scope): NOTION_TOKEN, NOTION_TICKETS_DB, NOTION_PR_DB, RECONCILE_GITHUB_TOKEN.
+#
 # To run nightly, uncomment the schedule below — but first give this repo a
-# token that can read PRs in the other repos (a GitHub App installation token or
-# a fine-grained PAT with pull_requests: read). GITHUB_TOKEN is scoped to this
-# repo alone and will 404 on the others.
+# token that can read PRs in the other repos (a fine-grained PAT with
+# pull_requests: read on each). GITHUB_TOKEN is scoped to this repo alone and
+# will 404 on the others. Note this repo is public, so a schedule is
+# auto-disabled after 60 days without a commit.
 name: Reconcile
 
 on:
@@ -40,8 +44,8 @@ jobs:
           since-days: ${{ inputs.since-days }}
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_TICKETS_DB: ${{ vars.NOTION_TICKETS_DB }}
-          NOTION_PR_DB: ${{ vars.NOTION_PR_DB }}
+          NOTION_TICKETS_DB: ${{ secrets.NOTION_TICKETS_DB }}
+          NOTION_PR_DB: ${{ secrets.NOTION_PR_DB }}
           # Cross-repo read access — not github.token, which cannot see sibling repos.
           GITHUB_TOKEN: ${{ secrets.RECONCILE_GITHUB_TOKEN }}
           DRY_RUN: ${{ inputs.dry-run && '1' || '' }}

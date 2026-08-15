@@ -34,7 +34,9 @@ fail the workflow.
 
 1. Build the two Notion databases — see [docs/notion-setup.md](docs/notion-setup.md).
 2. Connect both to a Notion integration.
-3. Org secret `NOTION_TOKEN`; org variables `NOTION_PR_DB`, `NOTION_TICKETS_DB`.
+3. On **each** source repo, add repo secrets `NOTION_TOKEN`,
+   `NOTION_TICKETS_DB`, `NOTION_PR_DB`. (`ubcuxhub` is a personal account, so
+   there is no org secret scope — see DESIGN.md §8.2.)
 4. Add each repo to `sync.config.json`, and copy
    [docs/caller-workflow.yml](docs/caller-workflow.yml) into it.
 5. Tag this repo `v1` — callers reference the tag, not `main`.

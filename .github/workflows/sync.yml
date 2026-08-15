@@ -27,7 +27,11 @@ jobs:
         with:
           mode: event
         env:
+          # All three are secrets, not vars. ubcuxhub is a personal account, so
+          # there is no org scope — and `secrets: inherit` passes only secrets
+          # from the caller, not variables. The db ids are not sensitive; this is
+          # about delivery, not secrecy.
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_TICKETS_DB: ${{ vars.NOTION_TICKETS_DB }}
-          NOTION_PR_DB: ${{ vars.NOTION_PR_DB }}
+          NOTION_TICKETS_DB: ${{ secrets.NOTION_TICKETS_DB }}
+          NOTION_PR_DB: ${{ secrets.NOTION_PR_DB }}
           GITHUB_TOKEN: ${{ github.token }}

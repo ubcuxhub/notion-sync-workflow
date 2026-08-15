@@ -274,13 +274,25 @@ permissions:
   pull-requests: read
 ```
 
-Org-level, so onboarding a repo is one file and zero secret setup:
+`ubcuxhub` is a **personal account, not an organization**, so org-level secrets
+and variables do not exist. Everything is per-repository, set on each *caller*
+repo (plus this one, for reconcile):
 
 | Name | Kind | Notes |
 |---|---|---|
-| `NOTION_TOKEN` | org secret | internal integration token |
-| `NOTION_PR_DB` | org variable | not sensitive |
-| `NOTION_TICKETS_DB` | org variable | not sensitive |
+| `NOTION_TOKEN` | repo secret | internal integration token |
+| `NOTION_PR_DB` | repo secret | not sensitive — a secret for delivery, not secrecy |
+| `NOTION_TICKETS_DB` | repo secret | same |
+
+All three are secrets rather than variables because `secrets: inherit` passes
+only secrets from caller to called workflow. Without an org scope there is no
+dependable way for the reusable workflow to read a caller's *variables*, so
+using them would trade a guarantee for a guess.
+
+The cost of no org scope: onboarding a repo is a workflow file **plus three
+secrets**, rather than a file alone. At two or three repos that is trivial; past
+roughly five it is worth revisiting whether a single scheduled sweep from this
+repo (one credential, no per-repo setup) beats the event path.
 
 Both this repo and the source repos are **public**, which settles three things:
 
@@ -304,9 +316,11 @@ nightly `schedule:` is enabled — a repo this quiet will hit it.
 
 1. Add the repo to `sync.config.json` in this repo.
 2. Copy the caller workflow into `.github/workflows/notion-sync.yml` there.
-3. Run reconcile with `--repos <owner/repo>` to backfill existing PRs.
+3. Set `NOTION_TOKEN`, `NOTION_TICKETS_DB`, `NOTION_PR_DB` as repo secrets on it.
+4. Run reconcile with `--repos <owner/repo>` to backfill existing PRs.
 
-No secrets to set; org secrets cover it.
+Step 3 is the per-repo tax of a personal account (§8.2). Rotating the Notion
+token means updating every repo.
 
 ## 10. Reconcile and backfill
 
