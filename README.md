@@ -23,9 +23,28 @@ reconcile run repairs drift that events alone cannot catch.
 
 Any of these, checked in order:
 
-1. `Ticket: UX-12` in the PR body (also `Closes UX-12`, or a pasted Notion URL)
+1. `Ticket: UX-12` in the PR body, or a pasted Notion page URL
 2. a branch named `feat/UX-12/thing` or `ux-12-thing`
 3. a title starting `[UX-12]` or `UX-12:`
+
+Nothing is case sensitive — `ticket: ux-12` works as well as `Ticket: UX-12`.
+
+In the body, the key needs one of these keywords in front of it, separated by a
+space, a colon, or both:
+
+```
+ticket  tickets
+close   closes   closed
+fix     fixes    fixed
+resolve resolves resolved
+```
+
+A bare `UX-12` in prose does **not** link — that's usually a cross-reference
+("follow-up to UX-12"), not a claim to be doing the work. The keyword is what
+separates mentioning a ticket from serving one. Branch and title matches need no
+keyword.
+
+One PR can serve several tickets: `Ticket: UX-1, UX-2`, or repeated lines.
 
 PRs with no resolvable reference land in the `unlinked` triage view. They never
 fail the workflow.
