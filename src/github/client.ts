@@ -43,6 +43,24 @@ export async function fetchPrsForReconcile(gh: Octokit, repo: string, since: Dat
   const [owner, name] = splitRepo(repo);
   const found = new Map<number, PullRequest>();
 
+  // Open PRs first, as their own query. Walking the `state: all` list and
+  // picking out the open ones cannot work: that list is ordered by update time
+  // and stops at the `since` cutoff, so an open PR nobody has touched since the
+  // cutoff sits below it and is never reached — exactly the neglected PR most
+  // likely to have drifted.
+  for await (const page of gh.paginate.iterator(gh.pulls.list, {
+    owner,
+    repo: name,
+    state: "open",
+    per_page: 100,
+  })) {
+    for (const raw of page.data) {
+      const pr = normalizePr(raw, repo);
+      found.set(pr.number, pr);
+    }
+  }
+
+  // Then everything touched since the cutoff, stopping at the first stale entry.
   for await (const page of gh.paginate.iterator(gh.pulls.list, {
     owner,
     repo: name,
@@ -54,11 +72,10 @@ export async function fetchPrsForReconcile(gh: Octokit, repo: string, since: Dat
     let exhausted = false;
     for (const raw of page.data) {
       const pr = normalizePr(raw, repo);
-      const stale = new Date(pr.updatedAt) < since;
-      if (stale && pr.closedAt) {
-        // Sorted by updated desc, so everything past here is older and closed.
+      if (new Date(pr.updatedAt) < since) {
+        // Sorted by updated desc, so everything past here is older still.
         exhausted = true;
-        continue;
+        break;
       }
       found.set(pr.number, pr);
     }
