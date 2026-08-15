@@ -15,20 +15,21 @@ on:
   workflow_dispatch:
     inputs:
       repos:
-        description: 'Comma-separated owner/name list (blank = sync.config.json)'
+        description: "Comma-separated owner/name list (blank = sync.config.json)"
         required: false
-        default: ''
+        default: ""
       since-days:
-        description: 'How many days back to sweep (blank = sync.config.json)'
+        description: "How many days back to sweep (blank = sync.config.json)"
         required: false
-        default: ''
+        default: ""
       dry-run:
-        description: 'Log intended writes without making them'
+        description: "Log intended writes without making them"
         type: boolean
         required: false
         default: false
-  # schedule:
-  #   - cron: '17 3 * * *'
+  # daily cron job
+  schedule:
+    - cron: "17 3 * * *"
 
 jobs:
   reconcile:

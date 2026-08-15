@@ -72,8 +72,36 @@ npm run typecheck
 npm run build     # bundles dist/ — must be committed, the Action runs it
 ```
 
-`dist/` is generated. Rebuild and commit it with any change to `src/`, or the
-Action keeps running the old code.
+`dist/` is the compiled bundle GitHub actually executes. Rebuild and commit it
+with any change to `src/`, or the Action keeps running the old code while the
+source looks correct.
+
+## Releasing
+
+Source repos reference `notion-sync-workflow@v1`, never `main`, so **pushing to
+`main` changes nothing for them** — the `v1` tag has to move.
+
+```bash
+npm run release
+```
+
+That typechecks, tests, rebuilds, refuses to continue if `dist/` no longer
+matches `src/`, then pushes `main` and force-moves `v1`. A floating major tag is
+the same convention `actions/checkout@v4` uses.
+
+What needs a release, and what doesn't:
+
+| Changed | Release? |
+|---|---|
+| `src/**` (and so `dist/`) | **yes** |
+| `action.yml` | **yes** |
+| `.github/workflows/sync.yml` — the reusable workflow | **yes** |
+| `.github/workflows/reconcile.yml` | no — runs from `main` |
+| `DESIGN.md`, `README.md`, `docs/`, `test/` | no |
+
+`reconcile.yml` is the confusing one: the workflow file is read from `main`, but
+the action it invokes is pinned to `@v1`, so a `src/` fix reaches reconcile only
+after a release.
 
 ## Layout
 
