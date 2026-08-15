@@ -29,13 +29,15 @@ npm run --silent test
 echo "→ build"
 npm run --silent build
 
-# The whole point of the script: dist/ is the compiled bundle the Action runs.
-# If rebuilding changed it, what is committed is not what src/ produces.
+# dist/ is the compiled bundle the Action actually runs. If rebuilding changed
+# it, what is committed is not what src/ produces — so commit the rebuild rather
+# than making the human remember to. A separate commit, never an amend: amending
+# an already-pushed commit would make the push below fail in a way that is far
+# harder to understand than one extra line of history.
 if [ -n "$(git status --porcelain dist)" ]; then
-  git checkout -- dist 2>/dev/null || true
-  fail "dist/ is out of date with src/.
-  Run:  npm run build && git add dist && git commit --amend --no-edit
-  then run this again."
+  echo "→ dist/ was stale; committing the rebuild"
+  git add dist
+  git commit -q -m "Rebuild dist"
 fi
 
 echo "→ push main"

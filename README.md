@@ -78,30 +78,48 @@ source looks correct.
 
 ## Releasing
 
-Source repos reference `notion-sync-workflow@v1`, never `main`, so **pushing to
-`main` changes nothing for them** — the `v1` tag has to move.
+**Commit your work, then run `npm run release`. Don't run `git push`.**
 
 ```bash
+git add -A && git commit -m "what you changed"
 npm run release
 ```
 
-That typechecks, tests, rebuilds, refuses to continue if `dist/` no longer
-matches `src/`, then pushes `main` and force-moves `v1`. A floating major tag is
-the same convention `actions/checkout@v4` uses.
+That is the whole workflow. `release` pushes for you, so a plain `git push` is
+never the right command here.
 
-What needs a release, and what doesn't:
+### Why not just `git push`?
 
-| Changed | Release? |
+`uxhub` doesn't run `main`. Its workflow says
+`notion-sync-workflow@v1`, so it runs **whatever the `v1` tag points at**. Push
+without moving the tag and nothing changes for it — your fix sits on `main`,
+unused, and the sync carries on running the old code with no error anywhere.
+`release` moves the tag, which is the step that actually ships.
+
+It also handles `dist/`, the compiled bundle GitHub executes: if it has drifted
+from `src/`, release rebuilds and commits it before pushing. So you never have
+to remember `npm run build`.
+
+In full, `release` runs typecheck → tests → build → commit `dist/` if stale →
+push `main` → move `v1`. It stops at the first failure, so a broken test can
+never reach `uxhub`. A floating major tag is the same convention
+`actions/checkout@v4` uses.
+
+### Does everything need a release?
+
+No — but running it when it wasn't needed is harmless, so **when in doubt, run
+it**. It is only worth knowing the difference when you're wondering why a change
+did or didn't take effect:
+
+| Changed | Reaches `uxhub` via |
 |---|---|
-| `src/**` (and so `dist/`) | **yes** |
-| `action.yml` | **yes** |
-| `.github/workflows/sync.yml` — the reusable workflow | **yes** |
-| `.github/workflows/reconcile.yml` | no — runs from `main` |
-| `DESIGN.md`, `README.md`, `docs/`, `test/` | no |
+| `src/**`, `action.yml`, `.github/workflows/sync.yml` | the `v1` tag — needs `release` |
+| `.github/workflows/reconcile.yml` | `main` — live on push |
+| `DESIGN.md`, `README.md`, `docs/`, `test/` | nothing runs these |
 
 `reconcile.yml` is the confusing one: the workflow file is read from `main`, but
-the action it invokes is pinned to `@v1`, so a `src/` fix reaches reconcile only
-after a release.
+the action it invokes is pinned to `@v1` — so editing the schedule takes effect
+immediately, while a `src/` fix reaches reconcile only after a release.
 
 ## Layout
 
