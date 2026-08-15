@@ -18,9 +18,17 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    # Only `contents: read`. A called workflow cannot request more than the
+    # caller repo's default token grants, and GitHub's restricted default is
+    # contents + packages read — so asking for `pull-requests: read` there fails
+    # the whole run at startup, before any log exists. We don't need it: the PR
+    # data comes from the event payload, and the one API read (the GraphQL
+    # review decision) is public data on a public repo.
+    #
+    # A private source repo would need `pull-requests: read` here AND its
+    # default workflow permissions set to allow it.
     permissions:
       contents: read
-      pull-requests: read
     steps:
       - name: Sync PR to Notion
         uses: ubcuxhub/notion-sync-workflow@v1
