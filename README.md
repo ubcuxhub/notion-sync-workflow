@@ -78,48 +78,19 @@ source looks correct.
 
 ## Releasing
 
-**Commit your work, then run `npm run release`. Don't run `git push`.**
-
 ```bash
 git add -A && git commit -m "what you changed"
 npm run release
 ```
 
-That is the whole workflow. `release` pushes for you, so a plain `git push` is
-never the right command here.
+**Use `npm run release`, not `git push`.** Source repos run
+`notion-sync-workflow@v1`, so they follow the `v1` tag, not `main`. Pushing
+without moving the tag ships nothing — and says nothing; the old code just keeps
+running.
 
-### Why not just `git push`?
-
-`uxhub` doesn't run `main`. Its workflow says
-`notion-sync-workflow@v1`, so it runs **whatever the `v1` tag points at**. Push
-without moving the tag and nothing changes for it — your fix sits on `main`,
-unused, and the sync carries on running the old code with no error anywhere.
-`release` moves the tag, which is the step that actually ships.
-
-It also handles `dist/`, the compiled bundle GitHub executes: if it has drifted
-from `src/`, release rebuilds and commits it before pushing. So you never have
-to remember `npm run build`.
-
-In full, `release` runs typecheck → tests → build → commit `dist/` if stale →
-push `main` → move `v1`. It stops at the first failure, so a broken test can
-never reach `uxhub`. A floating major tag is the same convention
-`actions/checkout@v4` uses.
-
-### Does everything need a release?
-
-No — but running it when it wasn't needed is harmless, so **when in doubt, run
-it**. It is only worth knowing the difference when you're wondering why a change
-did or didn't take effect:
-
-| Changed | Reaches `uxhub` via |
-|---|---|
-| `src/**`, `action.yml`, `.github/workflows/sync.yml` | the `v1` tag — needs `release` |
-| `.github/workflows/reconcile.yml` | `main` — live on push |
-| `DESIGN.md`, `README.md`, `docs/`, `test/` | nothing runs these |
-
-`reconcile.yml` is the confusing one: the workflow file is read from `main`, but
-the action it invokes is pinned to `@v1` — so editing the schedule takes effect
-immediately, while a `src/` fix reaches reconcile only after a release.
+`release` typechecks, tests, rebuilds `dist/` (committing it if stale), pushes
+`main`, and moves `v1`. It stops at the first failure, so a broken test can't
+reach `uxhub`. Running it when nothing needed shipping is harmless.
 
 ## Layout
 
