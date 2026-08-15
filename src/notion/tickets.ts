@@ -1,4 +1,4 @@
-import { computeTicketStatus } from "../core/computeTicketStatus.js";
+import { computeTicketStatus, decideTicketWrite } from "../core/computeTicketStatus.js";
 import type { PrOutcome, TicketRef } from "../types.js";
 import type { SyncContext } from "./context.js";
 import * as p from "./pages.js";
@@ -77,10 +77,11 @@ export async function recomputeTicket(ctx: SyncContext, ticketId: string): Promi
   const prPages = await ctx.client.queryAll<NotionPage>(ctx.prDs, {
     filter: { property: PR_PROPS.ticket, relation: { contains: ticketId } },
   });
-  const next = computeTicketStatus(prPages.map(toOutcome));
+  const computed = computeTicketStatus(prPages.map(toOutcome));
+  const next = decideTicketWrite(current, computed);
 
-  if (next === current) {
-    return { ticketId, from: current, to: next, changed: false, locked: false };
+  if (next === null) {
+    return { ticketId, from: current, to: computed, changed: false, locked: false };
   }
 
   if (ctx.dryRun) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeTicketStatus } from "../src/core/computeTicketStatus.js";
+import { computeTicketStatus, decideTicketWrite } from "../src/core/computeTicketStatus.js";
 
 const open = { merged: false, closed: false };
 const merged = { merged: true, closed: true };
@@ -35,5 +35,35 @@ describe("computeTicketStatus", () => {
   it("is Draft when every linked PR was abandoned", () => {
     expect(computeTicketStatus([abandoned])).toBe("Draft");
     expect(computeTicketStatus([abandoned, abandoned])).toBe("Draft");
+  });
+});
+
+describe("decideTicketWrite", () => {
+  it("writes nothing when the status already matches", () => {
+    expect(decideTicketWrite("Assigned", "Assigned")).toBeNull();
+    expect(decideTicketWrite("Completed", "Completed")).toBeNull();
+  });
+
+  it("promotes as work progresses", () => {
+    expect(decideTicketWrite("Draft", "Assigned")).toBe("Assigned");
+    expect(decideTicketWrite("Assigned", "Completed")).toBe("Completed");
+    expect(decideTicketWrite("Draft", "Completed")).toBe("Completed");
+  });
+
+  it("pulls a ticket back off Completed when the work no longer stands", () => {
+    expect(decideTicketWrite("Completed", "Assigned")).toBe("Assigned");
+    // Retracting its own claim is the one case where sync may write Draft.
+    expect(decideTicketWrite("Completed", "Draft")).toBe("Draft");
+  });
+
+  // The bug this rule exists for: someone picks up a ticket and moves it to
+  // Assigned before opening a PR, and the next sweep shoved it back to Draft.
+  it("never demotes a human's Assigned to Draft", () => {
+    expect(decideTicketWrite("Assigned", "Draft")).toBeNull();
+  });
+
+  it("leaves an untouched Draft alone", () => {
+    expect(decideTicketWrite("Draft", "Draft")).toBeNull();
+    expect(decideTicketWrite(undefined, "Draft")).toBeNull();
   });
 });

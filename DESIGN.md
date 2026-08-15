@@ -217,6 +217,22 @@ Closed-unmerged PRs are *excluded* rather than blocking — one abandoned PR
 should not pin a ticket at `Assigned` forever. Requiring `A` non-empty stops a
 ticket reaching `Completed` on the strength of zero real PRs.
 
+**What sync is allowed to write.** The computed value is not written blindly:
+
+```
+computed == current                      → write nothing
+computed == Draft AND current != Completed → write nothing
+otherwise                                → write computed
+```
+
+Sync owns exactly one claim — *every linked PR is merged, so this is done* — and
+may both make and retract it. It has no business choosing between `Draft` and
+`Assigned`: a ticket is `Assigned` when a person picks it up, which is normally
+true long before a PR exists. The first version wrote the computed value
+unconditionally, so the nightly sweep shoved every hand-assigned ticket with no
+PR yet back to `Draft`. A computed `Draft` is now only ever written to undo a
+previous `Completed`.
+
 Read the PR set from Notion with a single `relation contains <ticket_page_id>`
 query against the PR database — not from the event payload (which knows about
 one repo) and not by reading each related page (N requests).
