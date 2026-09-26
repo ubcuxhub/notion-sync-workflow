@@ -2,7 +2,8 @@
 
 Syncs GitHub pull requests into a Notion database, and derives ticket status
 from the state of each ticket's linked PRs. A ticket becomes `Completed` once
-every PR linked to it is merged.
+every PR linked to it is merged. A PR's `Ticket` and `Reviewers` can also be
+edited in Notion and are written back to GitHub.
 
 Replaces Notion's native GitHub integration, which is Business-tier only.
 See [DESIGN.md](DESIGN.md) for why, and for the reasoning behind each decision.
@@ -11,8 +12,10 @@ See [DESIGN.md](DESIGN.md) for why, and for the reasoning behind each decision.
 
 ```
 repo A ─┐
-repo B ─┼─► caller workflow ──► sync.yml ──► this action ──┬─► PR database
-repo C ─┘                                                  └─► Tickets database
+repo B ─┼─► caller workflow ──► sync.yml ──► this action ──┬─► PR database ──────┐
+repo C ─┘                                                  └─► Tickets database  │
+  ▲                                                                              │
+  └─────────────── poll, every 10 min: Ticket / Reviewers edits ◄────────────────┘
 ```
 
 A PR event fires in a source repo, the action upserts that PR's Notion page,
