@@ -1,6 +1,6 @@
 # Scheduled sync, run from this repo because it holds the cross-repo token:
 #
-#   poll       every 15 min — push Notion edits to Ticket / Reviewers to GitHub
+#   poll       every 10 min — push Notion edits to Ticket / Reviewers to GitHub
 #   reconcile  nightly      — re-sync every configured repo, repairing drift the
 #                             event workflows missed (and pushing edits too)
 #
@@ -38,8 +38,10 @@ on:
         required: false
         default: false
   schedule:
-    # The poll cron string must match the one MODE compares against.
-    - cron: "*/15 * * * *"
+    # The poll cron string must match the one MODE compares against. Offset
+    # from :00 because top-of-the-hour is when GitHub's scheduler is busiest
+    # and runs start latest.
+    - cron: "2-59/10 * * * *"
     - cron: "17 3 * * *"
 
 # Never two at once: a poll and a reconcile pushing the same row would each see
@@ -57,7 +59,7 @@ jobs:
       # Only for the keepalive step below.
       actions: write
     env:
-      MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.event.schedule == '*/15 * * * *' && 'poll' || 'reconcile') }}
+      MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.event.schedule == '2-59/10 * * * *' && 'poll' || 'reconcile') }}
     steps:
       - name: Sync (${{ env.MODE }})
         uses: ubcuxhub/notion-sync-workflow@v1

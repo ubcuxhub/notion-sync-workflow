@@ -17,7 +17,7 @@ repo C ─┘                                                  └─► Tickets
 
 A PR event fires in a source repo, the action upserts that PR's Notion page,
 then recomputes every ticket the PR is — or was — linked to. A separate
-reconcile run repairs drift that events alone cannot catch, and a 15-minute poll
+reconcile run repairs drift that events alone cannot catch, and a 10-minute poll
 pushes edits made in Notion back to GitHub (see [Editing in Notion](#editing-in-notion)).
 
 ## Linking a PR to a ticket
@@ -52,9 +52,9 @@ fail the workflow.
 
 ## Editing in Notion
 
-`Ticket` and `Reviewers` on a PR row can be edited in Notion. Every 15 minutes a
+`Ticket` and `Reviewers` on a PR row can be edited in Notion. Every 10 minutes a
 scheduled run writes the edit to GitHub, and the row is then re-synced from
-GitHub. Expect up to ~15 minutes' lag, more when GitHub runs cron late.
+GitHub. Expect up to ~10 minutes' lag, more when GitHub runs cron late.
 
 - **Ticket** is written into a marked block at the end of the PR description:
 

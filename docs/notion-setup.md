@@ -30,7 +30,7 @@ stays in its default group:
 ## Pull Requests
 
 Rows are machine-managed, with two exceptions: `Ticket` and `Reviewers` can be
-edited here, and the edit is written back to GitHub within about 15 minutes.
+edited here, and the edit is written back to GitHub within about 10 minutes.
 Everything else — the page body included, which is overwritten whenever the PR
 description changes — is overwritten on the next sync.
 

@@ -55,7 +55,7 @@ Two paths write to Notion:
    was, linked to.
 2. **Reconcile path.** A run in this repo sweeps all configured repos and
    repairs drift. Same code as backfill, different `--since`.
-3. **Poll path.** Every 15 minutes, a run in this repo finds PR rows where a
+3. **Poll path.** Every 10 minutes, a run in this repo finds PR rows where a
    human edited `Ticket` or `Reviewers`, writes that edit to GitHub, then syncs
    the row from GitHub as usual (§16).
 
@@ -620,7 +620,7 @@ Notion's "Send webhook" automation (available on Plus) was tested and rejected:
 - A dropped webhook would lose the edit silently: the next reconcile writes
   GitHub's value over it.
 
-A 15-minute poll has no infrastructure and heals itself: a missed or delayed
+A 10-minute poll has no infrastructure and heals itself: a missed or delayed
 run is covered by the next. The poller queries rows edited in the last 24h
 (`pollLookbackHours`, sized for cron runs observed hours late) and keeps only
 those whose values differ from their shadows. That filter is also what stops it
