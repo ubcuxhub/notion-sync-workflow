@@ -7,7 +7,7 @@ import { findUnfinishedTickets, recomputeTicket } from "../notion/tickets.js";
 import { PR_PROPS } from "../notion/schema.js";
 import * as p from "../notion/pages.js";
 import { syncPr } from "./syncPr.js";
-import { emptySummary, type RunSummary } from "./summary.js";
+import { emptySummary, record, type RunSummary } from "./summary.js";
 
 export interface ReconcileOptions {
   repos: string[];
@@ -43,9 +43,8 @@ export async function runReconcile(
     }
     ctx.log(`${repo}: ${prs.length} PR(s) to check`);
     for (const pr of prs) {
-      const result = await syncPr(ctx, gh, pr, { reviewStates: config.reviewStates });
-      summary.prs.push({ repo: pr.repo, number: pr.number, state: result.state, created: result.created });
-      if (!result.linked) summary.unlinked.push(`${pr.repo}#${pr.number}`);
+      const result = await syncPr(ctx, gh, pr, { reviewStates: config.reviewStates, canPush: true });
+      record(summary, result);
       for (const id of result.ticketsToRecompute) ticketsToRecompute.add(id);
     }
   }

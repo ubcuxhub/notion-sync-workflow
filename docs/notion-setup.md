@@ -29,8 +29,10 @@ stays in its default group:
 
 ## Pull Requests
 
-Every row is machine-managed. Nothing here should be edited by hand — the page
-body included, which is overwritten whenever the PR description changes.
+Rows are machine-managed, with two exceptions: `Ticket` and `Reviewers` can be
+edited here, and the edit is written back to GitHub within about 15 minutes.
+Everything else — the page body included, which is overwritten whenever the PR
+description changes — is overwritten on the next sync.
 
 | Property | Type | Notes |
 |---|---|---|
@@ -46,6 +48,9 @@ body included, which is overwritten whenever the PR description changes.
 | `Link status` | Select | `linked`, `unlinked` (lowercase) |
 | `Body hash` | Text | hidden; gates body rewrites |
 | `Synced at` | Date | hidden; staleness detection for reconcile |
+| `Ticket shadow` | Text | hidden; what GitHub last said for `Ticket` |
+| `Reviewers shadow` | Text | hidden; what GitHub last said for `Reviewers` |
+| `Sync error` | Text | why the last push to GitHub failed; empty when fine |
 
 `State` and `Link status` must be **Select**, not Status. The API cannot create
 new Status options, so a Status property here would break the first time GitHub
@@ -74,7 +79,9 @@ If a database is inline inside a parent page, connect the parent instead.
 - Tickets: board grouped by `Status`, columns ordered Draft → Assigned → Completed
 - Pull Requests: table filtered to `Link status = unlinked` — the triage queue
   for PRs whose ticket reference did not resolve
-- Pull Requests: hide `Body hash` and `Synced at` everywhere
+- Pull Requests: hide `Body hash`, `Synced at`, `Ticket shadow` and
+  `Reviewers shadow` everywhere. Leave `Sync error` visible, or add a view
+  filtered to `Sync error is not empty`.
 
 ## Ids
 

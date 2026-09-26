@@ -31,7 +31,8 @@ directly.
 
 ### Non-goals
 
-- Writing from Notion back to GitHub. Sync is one-directional.
+- General Notion → GitHub sync. Only `Ticket` and `Reviewers` flow back
+  (§16); every other property is one-directional.
 - Real-time latency guarantees. Seconds-to-minutes is fine.
 - Replacing GitHub as the source of truth for PRs.
 
@@ -54,6 +55,9 @@ Two paths write to Notion:
    was, linked to.
 2. **Reconcile path.** A run in this repo sweeps all configured repos and
    repairs drift. Same code as backfill, different `--since`.
+3. **Poll path.** Every 15 minutes, a run in this repo finds PR rows where a
+   human edited `Ticket` or `Reviewers`, writes that edit to GitHub, then syncs
+   the row from GitHub as usual (§16).
 
 The reconcile path is not optional maintenance work — see §10 for why event-only
 sync always drifts.
@@ -72,15 +76,18 @@ One page per PR. `URL` is the identity; the upsert filters on it.
 | `Repo` | select | `owner/repo` |
 | `Number` | number | `pull_request.number` |
 | `Author` | select | `user.login` |
-| `Reviewers` | multi-select | `requested_reviewers[].login` |
+| `Reviewers` | multi-select | `requested_reviewers[].login`; editable, §16 |
 | `Opened` | date | `created_at` |
 | `Merged` | date | `merged_at` |
 | `Closed` | date | `closed_at` |
 | `Last activity` | date | `updated_at` |
-| `Ticket` | relation → Tickets | resolved per §5 |
+| `Ticket` | relation → Tickets | resolved per §5; editable, §16 |
 | `Link status` | select | `linked` / `unlinked` |
 | `Body hash` | rich text | hidden; gates body rewrites (§6) |
 | `Synced at` | date | hidden; staleness detection for reconcile |
+| `Ticket shadow` | rich text | hidden; GitHub's ticket set at last sync (§16) |
+| `Reviewers shadow` | rich text | hidden; GitHub's reviewers at last sync (§16) |
+| `Sync error` | rich text | why the last push to GitHub failed (§16) |
 
 The PR description is **not** a property. It lives in the page body (§6).
 
@@ -325,8 +332,9 @@ Both this repo and the source repos are **public**, which settles three things:
   PRs up on its next sweep.
 
 The trade is that scheduled workflows in a public repo are **auto-disabled after
-60 days without a commit** (GitHub emails first). That matters only once §10's
-nightly `schedule:` is enabled — a repo this quiet will hit it.
+60 days without repository activity** (GitHub emails first). A repo this quiet
+will hit it, and a disabled poller means Notion edits silently stop reaching
+GitHub — so the nightly run re-enables its own workflow through the API.
 
 ## 9. Adding a repo
 
@@ -376,8 +384,9 @@ like a ticket genuinely in progress:
 Reconcile reads PRs across every configured repo, and `GITHUB_TOKEN` is scoped
 to the repo it runs in. It needs either a **GitHub App** installed on the org
 (preferred — scoped, auto-rotating) or a fine-grained PAT with
-`pull_requests: read`, stored as a secret in this repo. The per-repo event
-workflows need neither; they only talk to Notion.
+`pull_requests: read` — now **read & write**, for write-back (§16) — stored as
+a secret in this repo. The per-repo event workflows need neither; they only
+talk to Notion.
 
 ### Recommended sequencing
 
@@ -500,6 +509,10 @@ changed status, which links failed to resolve.
 | Body >100 blocks | chunk the append; first 100 in the create call |
 | Human edits the page body | overwritten next time the PR body changes (§6) |
 | PR opened as draft, then ready | `converted_to_draft` / `ready_for_review` both re-derive `State` |
+| Reviewer added in Notion is not a collaborator | GitHub 422 → `Reviewers` reverts, reason in `Sync error` (§16) |
+| Requested reviewer submits a review | GitHub drops them from requested reviewers → they leave `Reviewers` |
+| Ticket unlinked in Notion but named in a hand-written body line | region updated, ticket stays linked, run warns |
+| Notion edit on a row that predates write-back | shadow empty → GitHub wins once, then edits flow |
 
 ## 14. Decided against
 
@@ -536,3 +549,95 @@ Against the live workspace, driving the bundled `dist/` with real event payloads
 | Ticket status | Draft → Completed → Assigned → Completed as PR state changed |
 | Unlink | reference removed → relation cleared → *previous* ticket recomputed to Draft |
 | `Status locked` | merged PR linked, status held at Assigned |
+
+## 16. Notion → GitHub write-back
+
+Two PR-row properties are editable in Notion and flow back to GitHub:
+
+| Property | Written to GitHub as |
+|---|---|
+| `Ticket` | a `Ticket:` line in a marked region of the PR description |
+| `Reviewers` | requested reviewers on the PR |
+
+GitHub stays the single source of truth. A Notion edit is turned into a GitHub
+write, and the row is then written from what GitHub holds — so a link made in
+Notion survives a rebuild of the database, because GitHub remembers it. Every
+other property describes something that already happened on GitHub and stays
+one-directional; `State` in particular is never an action taken from a dropdown.
+
+### Detecting a human edit: shadows
+
+A single snapshot cannot tell "someone added a reviewer in Notion" from "GitHub
+dropped a reviewer and Notion is stale". Each write-back property has a hidden
+shadow (`Ticket shadow`, `Reviewers shadow`) holding what GitHub said at the
+last sync — the same idea as `Body hash`. With it, a three-way merge per element:
+
+```
+added   = notion − shadow
+removed = shadow − notion
+desired = (github ∪ added) − removed
+```
+
+Merging elements rather than whole values means there is no conflict case: a
+reviewer added in Notion and another requested on GitHub in the same window
+both survive. An empty shadow (a row from before write-back) means no baseline,
+so GitHub wins and the shadow is initialised. `src/core/mergeField.ts`.
+
+Only runs holding the cross-repo PAT push. The per-repo event workflows are
+read-only: they write the merged value to Notion but leave the shadow at
+GitHub's, so the edit stays pending for the poller rather than being
+overwritten.
+
+### The description region
+
+```
+<!-- notion-sync:tickets -->
+Ticket: UX-3, UX-7
+<!-- /notion-sync:tickets -->
+```
+
+Replaced wholesale on every push, so relinking and unlinking never touch the
+rest of the description. The markers are comments — invisible on GitHub and
+stripped from the Notion body — and the line between them is an ordinary
+directive (§5). Two consequences:
+
+- **The region's presence makes the body authoritative.** Once it exists, the
+  parser does not fall back to the branch or title, even when it says
+  `Ticket: none`. Otherwise unlinking a branch-derived ticket would undo itself.
+- **It only speaks for itself.** A ticket named in a hand-written line elsewhere
+  in the description cannot be unlinked from Notion; the run warns instead.
+
+A push costs one extra event run: editing the description fires
+`pull_request: edited`, which re-syncs the row and finds nothing to change.
+
+### Trigger: polling, not webhooks
+
+Notion's "Send webhook" automation (available on Plus) was tested and rejected:
+
+- It sends its own JSON envelope with no way to shape the body, and GitHub's
+  `repository_dispatch` requires a top-level `event_type` — so it cannot call
+  GitHub directly and would need a hosted relay.
+- A dropped webhook would lose the edit silently: the next reconcile writes
+  GitHub's value over it.
+
+A 15-minute poll has no infrastructure and heals itself: a missed or delayed
+run is covered by the next. The poller queries rows edited in the last 24h
+(`pollLookbackHours`, sized for cron runs observed hours late) and keeps only
+those whose values differ from their shadows. That filter is also what stops it
+re-processing its own writes; a quiet poll is one Notion query.
+
+### Failure handling
+
+GitHub rejects a reviewer who is not a collaborator, is the PR author, or is a
+typo — Notion multi-select accepts anything. Reviewers are requested one login
+per call so one bad name does not block the rest. A failed push reverts the
+Notion field to GitHub's value and writes the reason to `Sync error`, which
+stays until the next push attempt. Reviewer edits on closed or merged PRs are
+ignored.
+
+### Permissions
+
+`RECONCILE_GITHUB_TOKEN` needs **Pull requests: read & write** on each repo.
+That is an escalation: the token can now edit descriptions and request reviews
+wherever it is granted, and GitHub attributes those writes to its owner. The
+per-repo event workflows stay `contents: read`.

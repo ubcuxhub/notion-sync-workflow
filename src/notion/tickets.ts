@@ -50,6 +50,28 @@ async function byPageId(ctx: SyncContext, pageId: string): Promise<string | unde
   }
 }
 
+/**
+ * Ticket page ids → their keys ("UX-12"), for writing into a PR description.
+ *
+ * Keys rather than Notion URLs because the description is read by people on
+ * GitHub, and a key is what they would have typed. A page with no readable key
+ * is left out and logged; the caller notices it missing from what GitHub holds.
+ */
+export async function ticketKeys(ctx: SyncContext, pageIds: string[]): Promise<string[]> {
+  const keys: string[] = [];
+  for (const id of pageIds) {
+    try {
+      const page = await ctx.client.request<NotionPage>("GET", `/pages/${id}`);
+      const uid = page.properties[TICKET_PROPS.id]?.unique_id;
+      if (uid) keys.push(`${uid.prefix ?? ctx.ticketKeyPrefix}-${uid.number}`);
+      else ctx.log(`  ticket ${id} has no ${TICKET_PROPS.id} — cannot write it to GitHub`);
+    } catch (err) {
+      ctx.log(`  could not read ticket ${id}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  return keys;
+}
+
 export interface RecomputeResult {
   ticketId: string;
   from: string | undefined;

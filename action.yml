@@ -4,7 +4,7 @@ author: johnny-581
 
 inputs:
   mode:
-    description: 'event (sync the PR that fired this workflow) or reconcile (sweep configured repos)'
+    description: 'event (sync the PR that fired this workflow), poll (push Notion edits to GitHub) or reconcile (sweep configured repos)'
     required: false
     default: event
   repos:

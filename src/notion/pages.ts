@@ -38,6 +38,14 @@ export function readCheckbox(page: NotionPage, prop: string): boolean {
   return page.properties[prop]?.checkbox ?? false;
 }
 
+export function readMultiSelect(page: NotionPage, prop: string): string[] {
+  return (page.properties[prop]?.multi_select ?? []).map((o) => o.name);
+}
+
+export function readNumber(page: NotionPage, prop: string): number | undefined {
+  return page.properties[prop]?.number ?? undefined;
+}
+
 export function readRelationIds(page: NotionPage, prop: string): string[] {
   return (page.properties[prop]?.relation ?? []).map((r) => r.id);
 }
@@ -58,6 +66,41 @@ export const multiSelect = (names: string[]) => ({
 });
 export const date = (iso: string | null) => ({ date: iso ? { start: iso } : null });
 export const relation = (ids: string[]) => ({ relation: ids.map((id) => ({ id })) });
+
+// ---------- comparison ----------
+
+/**
+ * Whether writing `properties` would change anything on `page`.
+ *
+ * Only for reporting — the write happens either way. A run that says "updated"
+ * for every row cannot show whether it repaired anything, so summaries use this
+ * to say "unchanged" instead.
+ */
+export function differs(page: NotionPage, properties: Record<string, unknown>): boolean {
+  return Object.entries(properties).some(([name, value]) => comparable(value) !== comparable(page.properties[name]));
+}
+
+/** Reduce a read value or a write payload to one string, whichever shape it has. */
+function comparable(value: unknown): string {
+  const v = (value ?? {}) as Record<string, unknown>;
+  const text = (parts: unknown) =>
+    ((parts as { plain_text?: string; text?: { content?: string } }[] | undefined) ?? [])
+      .map((t) => t.plain_text ?? t.text?.content ?? "")
+      .join("");
+  if ("title" in v) return text(v["title"]);
+  if ("rich_text" in v) return text(v["rich_text"]);
+  if ("url" in v) return String(v["url"] ?? "");
+  if ("number" in v) return String(v["number"] ?? "");
+  if ("select" in v) return (v["select"] as { name?: string } | null)?.name ?? "";
+  if ("multi_select" in v) return ((v["multi_select"] as { name: string }[]) ?? []).map((o) => o.name).sort().join(",");
+  if ("relation" in v) return ((v["relation"] as { id: string }[]) ?? []).map((r) => r.id.replace(/-/g, "")).sort().join(",");
+  if ("date" in v) {
+    // Notion echoes a timestamp back in its own format, so compare instants.
+    const start = (v["date"] as { start?: string } | null)?.start;
+    return start ? String(Date.parse(start)) : "";
+  }
+  return JSON.stringify(value ?? null);
+}
 
 function truncate(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;

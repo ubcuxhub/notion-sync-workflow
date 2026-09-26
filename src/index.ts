@@ -1,8 +1,9 @@
-/** GitHub Action entrypoint. Runs the event path for the PR that fired the workflow. */
+/** GitHub Action entrypoint: the event path for the PR that fired the workflow, or a scheduled poll/reconcile. */
 
 import * as core from "@actions/core";
 import { prFromEvent } from "./github/client.js";
 import { runEvent } from "./modes/event.js";
+import { runPoll } from "./modes/poll.js";
 import { runReconcile } from "./modes/reconcile.js";
 import { render, writeJobSummary } from "./modes/summary.js";
 import { bootstrap } from "./run.js";
@@ -10,6 +11,15 @@ import { bootstrap } from "./run.js";
 async function main(): Promise<void> {
   const mode = core.getInput("mode") || "event";
   const { ctx, gh, config } = await bootstrap((msg) => core.info(msg));
+
+  if (mode === "poll") {
+    const since = new Date(Date.now() - config.pollLookbackHours * 60 * 60 * 1000);
+    const summary = await runPoll(ctx, gh, config, { since });
+    writeJobSummary(summary, ctx.dryRun);
+    core.info(render(summary, ctx.dryRun));
+    for (const warning of summary.warnings) core.warning(warning);
+    return;
+  }
 
   if (mode === "reconcile") {
     const days = Number(core.getInput("since-days") || config.reconcileSinceDays);

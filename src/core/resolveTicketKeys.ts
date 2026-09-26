@@ -1,4 +1,5 @@
 import type { PullRequest, TicketRef } from "../types.js";
+import { hasTicketRegion } from "./ticketRegion.js";
 
 /**
  * Find the tickets a PR claims to serve.
@@ -15,12 +16,17 @@ import type { PullRequest, TicketRef } from "../types.js";
  * is someone saying what they mean, so it beats an incidental match elsewhere.
  */
 export function resolveTicketRefs(pr: PullRequest, prefix: string): TicketRef[] {
+  // The region's markers are comments, so check for them before stripping. Once
+  // Notion has written the region, the body is authoritative even when empty —
+  // otherwise unlinking a ticket in Notion would be undone by a key in the branch.
+  const regionPresent = hasTicketRegion(pr.body);
+
   // PR templates ship commented-out examples ("<!-- Ticket: UX-123 -->"). Those
   // are instructions to the author, not claims by this PR.
   const body = pr.body.replace(/<!--[\s\S]*?-->/g, "");
 
   const fromBody = [...directiveRefs(body, prefix), ...notionUrlRefs(body)];
-  if (fromBody.length) return dedupe(fromBody);
+  if (fromBody.length || regionPresent) return dedupe(fromBody);
 
   const fromBranch = keyRefs(pr.branch, prefix);
   if (fromBranch.length) return dedupe(fromBranch);

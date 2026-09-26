@@ -17,7 +17,8 @@ repo C ─┘                                                  └─► Tickets
 
 A PR event fires in a source repo, the action upserts that PR's Notion page,
 then recomputes every ticket the PR is — or was — linked to. A separate
-reconcile run repairs drift that events alone cannot catch.
+reconcile run repairs drift that events alone cannot catch, and a 15-minute poll
+pushes edits made in Notion back to GitHub (see [Editing in Notion](#editing-in-notion)).
 
 ## Linking a PR to a ticket
 
@@ -49,6 +50,32 @@ One PR can serve several tickets: `Ticket: UX-1, UX-2`, or repeated lines.
 PRs with no resolvable reference land in the `unlinked` triage view. They never
 fail the workflow.
 
+## Editing in Notion
+
+`Ticket` and `Reviewers` on a PR row can be edited in Notion. Every 15 minutes a
+scheduled run writes the edit to GitHub, and the row is then re-synced from
+GitHub. Expect up to ~15 minutes' lag, more when GitHub runs cron late.
+
+- **Ticket** is written into a marked block at the end of the PR description:
+
+  ```
+  <!-- notion-sync:tickets -->
+  Ticket: UX-3, UX-7
+  <!-- /notion-sync:tickets -->
+  ```
+
+  Unlinking every ticket leaves `Ticket: none`, which stops a key in the branch
+  name or title from relinking it. A ticket named in your own words elsewhere in
+  the description can't be unlinked from Notion — remove that line on GitHub.
+- **Reviewers** are requested (or un-requested) on the PR. GitHub removes a
+  reviewer from the list once they submit a review, so `Reviewers` means "still
+  to review". Edits on closed or merged PRs are ignored.
+- If GitHub rejects an edit — usually a login that isn't a collaborator — the
+  field reverts and the reason appears in `Sync error`.
+
+Rows that existed before write-back was deployed need one sync before edits
+flow; an edit made before that is overwritten once.
+
 ## Setup
 
 1. Build the two Notion databases — see [docs/notion-setup.md](docs/notion-setup.md).
@@ -74,6 +101,12 @@ Sync one PR, without writing anything:
 DRY_RUN=1 npm run sync -- --repo acme/ux-hub-web --pr 42
 ```
 
+Push pending Notion edits to GitHub:
+
+```bash
+DRY_RUN=1 npm run sync -- --poll
+```
+
 Repair drift across every configured repo:
 
 ```bash
@@ -86,7 +119,7 @@ Note: if `.env` sets `GITHUB_TOKEN`, the `gh` CLI will use *that* token too, so
 ## Development
 
 ```bash
-npm test          # unit tests for the four core rules
+npm test          # unit tests for the core rules
 npm run typecheck
 npm run build     # bundles dist/ — must be committed, the Action runs it
 ```
@@ -115,8 +148,8 @@ reach `uxhub`. Running it when nothing needed shipping is harmless.
 
 | Path | |
 |---|---|
-| `src/core/` | the rules: state derivation, ticket refs, ticket status, markdown |
+| `src/core/` | the rules: state derivation, ticket refs, ticket status, markdown, write-back merge, description region |
 | `src/notion/` | client (API version 2025-09-03, data sources), upsert, tickets, body |
-| `src/github/` | event payload and REST normalization, review decision |
-| `src/modes/` | event and reconcile paths over a shared `syncPr` |
+| `src/github/` | event payload and REST normalization, review decision, write-back (`write.ts`) |
+| `src/modes/` | event, poll and reconcile paths over a shared `syncPr` |
 | `scripts/verify-schema.ts` | schema guard, run before every sync |

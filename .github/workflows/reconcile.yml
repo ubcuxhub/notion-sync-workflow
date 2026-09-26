@@ -1,25 +1,35 @@
-# Repairs drift: re-syncs PRs across every configured repo and recomputes ticket
-# status. Manual for now.
+# Scheduled sync, run from this repo because it holds the cross-repo token:
+#
+#   poll       every 15 min — push Notion edits to Ticket / Reviewers to GitHub
+#   reconcile  nightly      — re-sync every configured repo, repairing drift the
+#                             event workflows missed (and pushing edits too)
 #
 # Secrets live on THIS repo (ubcuxhub is a personal account, so there is no org
 # scope): NOTION_TOKEN, NOTION_TICKETS_DB, NOTION_PR_DB, RECONCILE_GITHUB_TOKEN.
 #
-# To run nightly, uncomment the schedule below — but first give this repo a
-# token that can read PRs in the other repos (a fine-grained PAT with
-# pull_requests: read on each). GITHUB_TOKEN is scoped to this repo alone and
-# will 404 on the others. Note this repo is public, so a schedule is
-# auto-disabled after 60 days without a commit.
+# RECONCILE_GITHUB_TOKEN is a fine-grained PAT with Pull requests: read & WRITE
+# on every configured repo — write because poll edits PR descriptions and
+# requests reviewers. GITHUB_TOKEN is scoped to this repo alone and would 404
+# on the others. GitHub attributes those edits to the PAT's owner.
+#
+# Cron times are not guarantees: runs here have started ~5h late. The poller's
+# lookback (pollLookbackHours) is sized for that.
 name: Reconcile
 
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "poll pushes Notion edits; reconcile sweeps every repo"
+        type: choice
+        options: [reconcile, poll]
+        default: reconcile
       repos:
-        description: "Comma-separated owner/name list (blank = sync.config.json)"
+        description: "reconcile only — comma-separated owner/name list (blank = sync.config.json)"
         required: false
         default: ""
       since-days:
-        description: "How many days back to sweep (blank = sync.config.json)"
+        description: "reconcile only — how many days back to sweep (blank = sync.config.json)"
         required: false
         default: ""
       dry-run:
@@ -27,26 +37,47 @@ on:
         type: boolean
         required: false
         default: false
-  # daily cron job
   schedule:
+    # The poll cron string must match the one MODE compares against.
+    - cron: "*/15 * * * *"
     - cron: "17 3 * * *"
 
+# Never two at once: a poll and a reconcile pushing the same row would each see
+# the other's half-finished write. Queue rather than cancel — the queued run
+# re-reads everything, so nothing is lost by waiting.
+concurrency:
+  group: notion-sync-scheduled
+  cancel-in-progress: false
+
 jobs:
-  reconcile:
+  sync:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Only for the keepalive step below.
+      actions: write
+    env:
+      MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.event.schedule == '*/15 * * * *' && 'poll' || 'reconcile') }}
     steps:
-      - name: Reconcile Notion against GitHub
+      - name: Sync (${{ env.MODE }})
         uses: ubcuxhub/notion-sync-workflow@v1
         with:
-          mode: reconcile
+          mode: ${{ env.MODE }}
           repos: ${{ inputs.repos }}
           since-days: ${{ inputs.since-days }}
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_TICKETS_DB: ${{ secrets.NOTION_TICKETS_DB }}
           NOTION_PR_DB: ${{ secrets.NOTION_PR_DB }}
-          # Cross-repo read access — not github.token, which cannot see sibling repos.
           GITHUB_TOKEN: ${{ secrets.RECONCILE_GITHUB_TOKEN }}
           DRY_RUN: ${{ inputs.dry-run && '1' || '' }}
+
+      # This repo is public, so GitHub disables its schedules after 60 days
+      # without repository activity — and the poller stopping means Notion edits
+      # silently stop reaching GitHub. Re-enabling through the API resets that
+      # clock without a keepalive commit.
+      - name: Keep the schedule alive
+        if: env.MODE == 'reconcile' && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/reconcile.yml/enable"

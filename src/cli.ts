@@ -5,6 +5,7 @@
  *   DRY_RUN=1 npm run sync -- --repo acme/ux-hub-web --pr 42
  *   npm run sync -- --reconcile --since-days 30
  *   npm run sync -- --reconcile --repos acme/a,acme/b
+ *   npm run sync -- --poll
  *
  * Driving a live PR through `--repo/--pr` is what makes this testable without
  * a webhook: it fetches the PR from the API and runs the identical event path.
@@ -13,6 +14,7 @@
 import "dotenv/config";
 import { fetchPr } from "./github/client.js";
 import { runEvent } from "./modes/event.js";
+import { runPoll } from "./modes/poll.js";
 import { runReconcile } from "./modes/reconcile.js";
 import { render } from "./modes/summary.js";
 import { bootstrap } from "./run.js";
@@ -21,18 +23,20 @@ interface Args {
   repo?: string;
   pr?: number;
   reconcile: boolean;
+  poll: boolean;
   repos?: string[];
   sinceDays?: number;
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { reconcile: false };
+  const args: Args = { reconcile: false, poll: false };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     const next = () => argv[++i];
     if (flag === "--repo") args.repo = next();
     else if (flag === "--pr") args.pr = Number(next());
     else if (flag === "--reconcile") args.reconcile = true;
+    else if (flag === "--poll") args.poll = true;
     else if (flag === "--repos") args.repos = (next() ?? "").split(",").map((r) => r.trim()).filter(Boolean);
     else if (flag === "--since-days") args.sinceDays = Number(next());
     else if (flag === "--help" || flag === "-h") {
@@ -46,6 +50,7 @@ function parseArgs(argv: string[]): Args {
 const USAGE = `Usage:
   sync --repo <owner/name> --pr <number>     sync one PR
   sync --reconcile [--repos a,b] [--since-days N]
+  sync --poll                                push Notion edits to Ticket/Reviewers to GitHub
 
 Environment: NOTION_TOKEN, NOTION_TICKETS_DB, NOTION_PR_DB, GITHUB_TOKEN, DRY_RUN`;
 
@@ -54,6 +59,13 @@ async function main(): Promise<void> {
   const { ctx, gh, config } = await bootstrap((msg) => console.log(msg));
 
   if (ctx.dryRun) console.log("DRY RUN — no writes will be made\n");
+
+  if (args.poll) {
+    const since = new Date(Date.now() - config.pollLookbackHours * 60 * 60 * 1000);
+    const summary = await runPoll(ctx, gh, config, { since });
+    console.log(`\n${render(summary, ctx.dryRun)}`);
+    return;
+  }
 
   if (args.reconcile) {
     const repos = args.repos ?? config.repos;

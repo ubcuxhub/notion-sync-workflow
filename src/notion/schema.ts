@@ -26,6 +26,9 @@ export const PR_PROPS = {
   linkStatus: "Link status",
   bodyHash: "Body hash",
   syncedAt: "Synced at",
+  ticketShadow: "Ticket shadow",
+  reviewersShadow: "Reviewers shadow",
+  syncError: "Sync error",
 } as const;
 
 export const TICKET_PROPS = {
@@ -70,6 +73,9 @@ const PR_EXPECTED: Record<string, string> = {
   [PR_PROPS.linkStatus]: "select",
   [PR_PROPS.bodyHash]: "rich_text",
   [PR_PROPS.syncedAt]: "date",
+  [PR_PROPS.ticketShadow]: "rich_text",
+  [PR_PROPS.reviewersShadow]: "rich_text",
+  [PR_PROPS.syncError]: "rich_text",
 };
 
 const TICKET_EXPECTED: Record<string, string> = {

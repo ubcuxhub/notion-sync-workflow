@@ -1,18 +1,33 @@
 import { appendFileSync } from "node:fs";
 
 export interface RunSummary {
-  prs: { repo: string; number: number; state: string; created: boolean }[];
+  prs: { repo: string; number: number; state: string; outcome: "created" | "updated" | "unchanged" }[];
+  /** Notion edits written to GitHub. */
+  pushes: { repo: string; number: number; what: string }[];
   ticketChanges: { ticketId: string; from: string; to: string }[];
   unlinked: string[];
   warnings: string[];
 }
 
 export function emptySummary(): RunSummary {
-  return { prs: [], ticketChanges: [], unlinked: [], warnings: [] };
+  return { prs: [], pushes: [], ticketChanges: [], unlinked: [], warnings: [] };
+}
+
+/** Fold one PR's sync result into a run summary. */
+export function record(
+  summary: RunSummary,
+  result: { pr: { repo: string; number: number }; state: string; outcome: RunSummary["prs"][number]["outcome"]; linked: boolean; pushed: string[]; warnings: string[] },
+): void {
+  const { repo, number } = result.pr;
+  summary.prs.push({ repo, number, state: result.state, outcome: result.outcome });
+  for (const what of result.pushed) summary.pushes.push({ repo, number, what });
+  if (!result.linked) summary.unlinked.push(`${repo}#${number}`);
+  summary.warnings.push(...result.warnings);
 }
 
 export function merge(into: RunSummary, from: RunSummary): RunSummary {
   into.prs.push(...from.prs);
+  into.pushes.push(...from.pushes);
   into.ticketChanges.push(...from.ticketChanges);
   into.unlinked.push(...from.unlinked);
   into.warnings.push(...from.warnings);
@@ -25,11 +40,17 @@ export function render(summary: RunSummary, dryRun: boolean): string {
   if (summary.prs.length) {
     lines.push("| PR | State | |", "|---|---|---|");
     for (const pr of summary.prs) {
-      lines.push(`| ${pr.repo}#${pr.number} | ${pr.state} | ${pr.created ? "created" : "updated"} |`);
+      lines.push(`| ${pr.repo}#${pr.number} | ${pr.state} | ${pr.outcome} |`);
     }
     lines.push("");
   } else {
     lines.push("_No pull requests synced._", "");
+  }
+
+  if (summary.pushes.length) {
+    lines.push("**Pushed to GitHub from Notion**", "");
+    for (const push of summary.pushes) lines.push(`- ${push.repo}#${push.number}: ${push.what}`);
+    lines.push("");
   }
 
   if (summary.ticketChanges.length) {

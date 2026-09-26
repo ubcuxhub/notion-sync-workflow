@@ -14,6 +14,8 @@ export interface SyncConfig {
   reviewStates: boolean;
   /** Default lookback for reconcile, in days. */
   reconcileSinceDays: number;
+  /** How far back the poller looks for Notion edits, in hours. Long, to ride out delayed cron runs. */
+  pollLookbackHours: number;
 }
 
 export interface Env {
@@ -31,6 +33,7 @@ export function loadConfig(path = resolve(repoRoot, "sync.config.json")): SyncCo
     ticketKeyPrefix: raw.ticketKeyPrefix ?? "UX",
     reviewStates: raw.reviewStates ?? true,
     reconcileSinceDays: raw.reconcileSinceDays ?? 14,
+    pollLookbackHours: raw.pollLookbackHours ?? 24,
   };
 }
 
