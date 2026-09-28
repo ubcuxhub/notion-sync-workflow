@@ -28,6 +28,30 @@ export function renderBody(markdown: string): NotionBlock[] {
   }
 }
 
+/**
+ * The page body: a notice that the description is a mirror, then the
+ * description itself. Without the notice, an edit to the body looks like it
+ * stuck until the next GitHub change silently wipes it.
+ */
+export function renderPageBody(markdown: string, prUrl: string): NotionBlock[] {
+  return [mirrorNotice(prUrl), ...renderBody(markdown)];
+}
+
+export function mirrorNotice(prUrl: string): NotionBlock {
+  return {
+    object: "block",
+    type: "callout",
+    callout: {
+      icon: { type: "emoji", emoji: "🔁" },
+      color: "gray_background",
+      rich_text: [
+        { type: "text", text: { content: "Mirrored from GitHub — edits here are overwritten. " } },
+        { type: "text", text: { content: "Edit the description on GitHub ↗", link: { url: prUrl } } },
+      ],
+    },
+  };
+}
+
 function clean(markdown: string): string {
   return markdown
     // PR templates are mostly HTML comments; they carry no meaning for a reader.

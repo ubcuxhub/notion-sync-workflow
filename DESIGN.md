@@ -177,7 +177,15 @@ stranded at whatever status it held.
 Database rows are pages, so the description is written into the block body as
 ordinary blocks — headings, lists, code, paragraphs — rather than a truncated
 rich-text property. No wrapper and no sync-owned region — just the rendered
-description as ordinary blocks.
+description as ordinary blocks, under one callout: "Mirrored from GitHub —
+edits here are overwritten", linking to the PR. Notion lets anyone edit the
+body, and without the callout an edit looks like it stuck until the next GitHub
+change silently wipes it. Only Ticket and Reviewers write back (§16); the body
+never will — blocks don't round-trip to markdown, and a description can't be
+merged the way a set can.
+
+The callout rides on body rewrites, so pages written before it existed pick it
+up the next time their description changes on GitHub. No backfill.
 
 **GitHub wins.** Whenever the PR body changes on GitHub, sync replaces the page
 body wholesale. Human edits to the body are not preserved — the page is a

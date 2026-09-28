@@ -1,5 +1,5 @@
 import { hashBody, replacePageBody, appendBlocks } from "./body.js";
-import { chunkBlocks, renderBody } from "../core/renderBody.js";
+import { chunkBlocks, renderPageBody } from "../core/renderBody.js";
 import type { PrState, LinkStatus } from "./schema.js";
 import { PR_PROPS } from "./schema.js";
 import * as p from "./pages.js";
@@ -75,12 +75,11 @@ export async function upsertPr(
 
   if (existing) {
     await ctx.client.request("PATCH", `/pages/${existing.id}`, { properties });
-    if (bodyChanged) await replacePageBody(ctx.client, existing.id, renderBody(pr.body));
+    if (bodyChanged) await replacePageBody(ctx.client, existing.id, renderPageBody(pr.body, pr.url));
     return { pageId: existing.id, created: false, changed, bodyRewritten: bodyChanged };
   }
 
-  const blocks = renderBody(pr.body);
-  const [first = [], ...rest] = chunkBlocks(blocks);
+  const [first = [], ...rest] = chunkBlocks(renderPageBody(pr.body, pr.url));
   const page = await ctx.client.request<{ id: string }>("POST", "/pages", {
     parent: { type: "data_source_id", data_source_id: ctx.prDs },
     properties,
@@ -89,7 +88,7 @@ export async function upsertPr(
   for (const chunk of rest) {
     await appendBlocks(ctx.client, page.id, chunk);
   }
-  return { pageId: page.id, created: true, changed: true, bodyRewritten: blocks.length > 0 };
+  return { pageId: page.id, created: true, changed: true, bodyRewritten: pr.body.trim().length > 0 };
 }
 
 export async function findPrPage(ctx: SyncContext, prUrl: string): Promise<NotionPage | undefined> {
