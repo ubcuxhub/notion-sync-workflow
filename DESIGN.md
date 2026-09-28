@@ -258,7 +258,7 @@ somewhere sync disagrees with.
 name: Notion sync
 on:
   pull_request:
-    types: [opened, reopened, edited, closed,
+    types: [opened, reopened, edited, synchronize, closed,
             ready_for_review, converted_to_draft,
             review_requested, review_request_removed]
   pull_request_review:
@@ -278,7 +278,11 @@ Notes on each piece:
 
 - **`pull_request`, not `pull_request_target`.** No fork PRs, so secrets are
   always available and the simpler trigger is correct.
-- **No `synchronize`.** It fires on every push and changes nothing we sync.
+- **`synchronize`, despite changing nothing we sync.** GitHub runs no
+  `pull_request` workflow on a PR it can't test-merge, so a PR opened with
+  merge conflicts never gets its `opened` run, and the push that resolves them
+  was the next event — which left the PR out of Notion until the nightly
+  reconcile. Minutes are free (§8.2), so a no-op run per push is cheap.
 - **No `assigned`/`labeled`/etc.** Those properties were cut from the schema;
   keeping the triggers would just burn Actions minutes.
   `review_requested`/`review_request_removed` stay, because `Reviewers` does.

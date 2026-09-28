@@ -12,6 +12,9 @@ on:
       - opened
       - reopened
       - edited
+      # Changes nothing we sync, but a PR opened with merge conflicts gets no
+      # `opened` run — the push that resolves them is its first chance to sync.
+      - synchronize
       - closed
       - ready_for_review
       - converted_to_draft
