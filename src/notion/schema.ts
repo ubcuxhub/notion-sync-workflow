@@ -51,7 +51,7 @@ export const PR_STATES = [
 ] as const;
 export type PrState = (typeof PR_STATES)[number];
 
-export const TICKET_STATUSES = ["Draft", "Assigned", "Completed"] as const;
+export const TICKET_STATUSES = ["Draft", "Assigned", "In review", "Completed"] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
 export const LINK_STATUSES = ["linked", "unlinked"] as const;

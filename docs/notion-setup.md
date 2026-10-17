@@ -13,18 +13,19 @@ name, type and option against what the code expects.
 |---|---|---|
 | `Name` | Title | |
 | `ID` | ID (unique id) | prefix `UX` — Notion mints `UX-1`, `UX-2`… |
-| `Status` | Status | `Draft`, `Assigned`, `Completed` |
+| `Status` | Status | `Draft`, `Assigned`, `In review`, `Completed` |
 | `PRs` | Relation → Pull Requests | created automatically by the relation below |
 | `Status locked` | Checkbox | when ticked, sync never touches `Status` |
 | `Auto-updated at` | Date | last time sync wrote `Status` |
 
-Create the three `Status` options by **renaming Notion's defaults**, so each
-stays in its default group:
+Create the `Status` options by **renaming Notion's defaults**, so each stays in
+its default group, then add `In review` to the In progress group:
 
 | Default | Rename to | Group |
 |---|---|---|
 | Not started | `Draft` | To-do |
 | In progress | `Assigned` | In progress |
+| — (new) | `In review` | In progress |
 | Done | `Completed` | Complete |
 
 ## Pull Requests
@@ -76,7 +77,7 @@ If a database is inline inside a parent page, connect the parent instead.
 
 ## Views worth having
 
-- Tickets: board grouped by `Status`, columns ordered Draft → Assigned → Completed
+- Tickets: board grouped by `Status`, columns ordered Draft → Assigned → In review → Completed
 - Pull Requests: table filtered to `Link status = unlinked` — the triage queue
   for PRs whose ticket reference did not resolve
 - Pull Requests: hide `Body hash`, `Synced at`, `Ticket shadow` and

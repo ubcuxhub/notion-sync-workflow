@@ -102,7 +102,7 @@ Kanban, grouped by `Status`.
 |---|---|---|
 | `Name` | title | |
 | `ID` | **ID** (unique id), prefix `UX` | Notion mints `UX-1`, `UX-2`… |
-| `Status` | status | `Draft` / `Assigned` / `Completed` |
+| `Status` | status | `Draft` / `Assigned` / `In review` / `Completed` |
 | `PRs` | relation → PR DB | the other half of `Ticket` |
 | `Status locked` | checkbox | sync skips this ticket entirely |
 | `Auto-updated at` | date | last time sync wrote `Status` |
@@ -225,28 +225,32 @@ ticket.StatusLocked        → leave alone
 L empty                    → Draft
 A empty                    → Draft       (every attempt was abandoned)
 all of A merged            → Completed
-otherwise                  → Assigned
+otherwise                  → In review   (at least one PR still open)
 ```
 
 Closed-unmerged PRs are *excluded* rather than blocking — one abandoned PR
-should not pin a ticket at `Assigned` forever. Requiring `A` non-empty stops a
+should not pin a ticket at `In review` forever. Requiring `A` non-empty stops a
 ticket reaching `Completed` on the strength of zero real PRs.
 
 **What sync is allowed to write.** The computed value is not written blindly:
 
 ```
-computed == current                      → write nothing
-computed == Draft AND current != Completed → write nothing
-otherwise                                → write computed
+computed == current                         → write nothing
+computed == Draft AND current == Completed  → write Draft
+computed == Draft AND current == In review  → write Assigned
+computed == Draft                           → write nothing
+otherwise                                   → write computed
 ```
 
-Sync owns exactly one claim — *every linked PR is merged, so this is done* — and
-may both make and retract it. It has no business choosing between `Draft` and
+Sync owns exactly two claims — *a linked PR is open, so this is in review*, and
+*every linked PR is merged, so this is done* — and may both make and retract
+them. It has no business choosing between `Draft` and
 `Assigned`: a ticket is `Assigned` when a person picks it up, which is normally
 true long before a PR exists. The first version wrote the computed value
 unconditionally, so the nightly sweep shoved every hand-assigned ticket with no
-PR yet back to `Draft`. A computed `Draft` is now only ever written to undo a
-previous `Completed`.
+PR yet back to `Draft`. A computed `Draft` is now only ever written to undo one
+of sync's own claims: `Completed` goes back to `Draft`, and `In review` goes back
+to `Assigned`, because whoever opened the abandoned PR still has the ticket.
 
 Read the PR set from Notion with a single `relation contains <ticket_page_id>`
 query against the PR database — not from the event payload (which knows about
@@ -374,8 +378,8 @@ Reconcile does:
 
 ### Why event-only sync is not sufficient
 
-Each of these fails **silently** — a ticket stuck at `Assigned` looks exactly
-like a ticket genuinely in progress:
+Each of these fails **silently** — a ticket stuck at `In review` looks exactly
+like a ticket genuinely in review:
 
 - **Dropped events are gone forever.** A Notion 429, a 5xx, a transient network
   failure — the run fails and nothing retries it. GitHub does not redeliver

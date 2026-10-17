@@ -1,8 +1,8 @@
 # notion-sync-workflow
 
 Syncs GitHub pull requests into a Notion database, and derives ticket status
-from the state of each ticket's linked PRs. A ticket becomes `Completed` once
-every PR linked to it is merged. A PR's `Ticket` and `Reviewers` can also be
+from the state of each ticket's linked PRs. A ticket moves to `In review` while
+it has an open PR, and becomes `Completed` once every PR linked to it is merged. A PR's `Ticket` and `Reviewers` can also be
 edited in Notion and are written back to GitHub.
 
 Replaces Notion's native GitHub integration, which is Business-tier only.
